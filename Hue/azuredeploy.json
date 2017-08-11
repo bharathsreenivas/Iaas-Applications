@@ -8,12 +8,30 @@
                 "description": "The name of the existing HDInsight cluster"
             }
         },
+        "sshUserName": {
+            "type": "string",
+            "defaultValue": "sshuser",
+            "metadata": {
+                "description": "These credentials can be used to remotely access the cluster."
+            }
+        },
+        "sparkVersion": {
+            "type": "string",
+            "metadata": {
+                "description": "The Spark version to be installed on the cluster."
+            },
+            "allowedValues": [
+                "1.6",
+                "2.0"
+            ],
+            "defaultValue": "2.0"
+        },
         "galleryPackageIdentity": {
             "type": "string",
             "metadata": {
-                "description" : "Any non-empty value is accepted. After the package is published, this parameter will be used to link the application install to the details about the application in the marketplace."
+                "description": "H2O is an open source, in-memory, distributed, fast, and scalable machine learning and predictive analytics platform."
             },
-            "defaultValue": "Hue"
+            "defaultValue": "H2O HDInsight App"
         },
         "edgeNodeSize": {
             "type": "string",
@@ -35,40 +53,55 @@
     },
     "variables": {
         "clusterApiVersion": "2015-03-01-preview",
-        "applicationName": "hue"
+        "applicationName": "h2o-sparklingwater"
     },
     "resources": [{
         "name": "[concat(parameters('clusterName'),'/', variables('applicationName'))]",
         "type": "Microsoft.HDInsight/clusters/applications",
         "apiVersion": "[variables('clusterApiVersion')]",
-        "properties": {
-            "marketPlaceIdentifier": "[parameters('galleryPackageIdentity')]",
-            "computeProfile": {
-                "roles": [{
-                    "name": "edgenode",
-                    "targetInstanceCount": 1,
-                    "hardwareProfile": {
-                        "vmSize": "[parameters('edgeNodeSize')]"
-                    }
-                }]
-            },
-            "installScriptActions": [{
-                "name": "[concat('hue-install-v0','-' ,uniquestring(variables('applicationName')))]",
-                "uri": "https://raw.githubusercontent.com/hdinsight/Iaas-Applications/master/Hue/scripts/Hue-install_v0.sh",
-                "roles": ["edgenode"]
-            }],
-            "uninstallScriptActions": [],
-            "httpsEndpoints": [{
-                "subDomainSuffix": "hue",
-                "destinationPort": 8888,
-                "accessModes": ["webpage"]
-            },
-            {
-                "subDomainSuffix": "was",
-                "destinationPort": 50073
-            }],
-            "applicationType": "CustomApplication"
-        }
+            "properties": {
+                "marketPlaceIdentifier": "EmptyNode",
+                "computeProfile": {
+                    "roles": [
+                        {
+                            "name": "edgenode",
+                            "targetInstanceCount": 1,
+                            "hardwareProfile": {
+                                "vmSize": "[parameters('edgeNodeSize')]"
+                            }
+                        }
+                    ]
+                },
+                "installScriptActions": [
+                  {
+                    "name": "[concat('head-install-v0','-' ,uniquestring('h2o-sparklingwater'))]",
+                    "uri": "https://raw.githubusercontent.com/h2oai/h2o-cloud/master/Azure-H2O-SparklingWater/head_node_install.sh",
+                    "parameters": "[concat(parameters('sshUserName'), ' ', parameters('sparkVersion'))]",
+                    "roles": [ "headnode" ]
+                  },
+                  {
+                    "name": "[concat('worker-install-v0','-' ,uniquestring('h2o-sparklingwater'))]",
+                    "uri": "https://raw.githubusercontent.com/h2oai/h2o-cloud/master/Azure-H2O-SparklingWater/worker_installs.sh",
+                    "parameters": "",
+                    "roles": [ "workernode" ]
+                  },
+                  {
+                    "name": "[concat('edge-install-v0','-' ,uniquestring('h2o-sparklingwater'))]",
+                    "uri": "https://raw.githubusercontent.com/h2oai/h2o-cloud/master/Azure-H2O-SparklingWater/edgenodeinstall.sh",
+                    "parameters": "",
+                    "roles": [ "edgenode" ]
+                  }
+                ],
+                "uninstallScriptActions": [ ],
+              "httpsEndpoints": [
+                {  
+                "subDomainSuffix": "h2o",  
+                "destinationPort": 80,  
+                "accessModes": ["WebPage"]  
+                }
+              ],
+                "applicationType": "CustomApplication"
+            }
     }],
     "outputs": {
         "application": {
